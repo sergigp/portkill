@@ -1,6 +1,11 @@
-# Pending stuff
+## Port Killer
+
+TUI app to kill processes that are using a specific port.
+
+## Pending stuff
 
 - improve UI
-- portkiller -v
+- portkill -v
+- installation steps
 - documentation
 - tests

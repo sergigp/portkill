@@ -36,11 +36,10 @@ impl UI {
                 match key.code {
                     KeyCode::Char('j') | KeyCode::Down => self.table.select_next(),
                     KeyCode::Char('k') | KeyCode::Up => self.table.select_previous(),
-                    KeyCode::Char('q') | KeyCode::Esc | KeyCode::Char('c')
-                        if key.modifiers.contains(KeyModifiers::CONTROL) =>
-                    {
+                    KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         break Ok(());
                     }
+                    KeyCode::Char('q') | KeyCode::Esc => break Ok(()),
                     KeyCode::Enter => {
                         if let Some(selected_index) = self.table.selected()
                             && let Some(process_to_kill) = killable_processes.get(selected_index)
@@ -61,7 +60,7 @@ impl UI {
         let [top, main] = frame.area().layout(&layout);
 
         let title = Line::from_iter([
-            Span::from("Port Killer").style(Style::new().bold()),
+            Span::from("Port Kill").style(Style::new().bold()),
             Span::from(" (Press 'q' to quit and arrow keys to navigate)"),
         ]);
         frame.render_widget(title.centered(), top);
