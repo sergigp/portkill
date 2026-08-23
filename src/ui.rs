@@ -1,4 +1,4 @@
-use crossterm::event::{self, KeyCode};
+use crossterm::event::{self, KeyCode, KeyModifiers};
 use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
@@ -10,7 +10,7 @@ use ratatui::{
 
 use std::io;
 
-use crate::port_process::PortProcess;
+use crate::port_process::{self, PortProcess};
 
 pub struct UI {
     table: TableState,
@@ -36,8 +36,20 @@ impl UI {
                 match key.code {
                     KeyCode::Char('j') | KeyCode::Down => self.table.select_next(),
                     KeyCode::Char('k') | KeyCode::Up => self.table.select_previous(),
-                    KeyCode::Char('q') | KeyCode::Esc => break Ok(()),
-                    KeyCode::Enter => break Ok(()),
+                    KeyCode::Char('q') | KeyCode::Esc | KeyCode::Char('c')
+                        if key.modifiers.contains(KeyModifiers::CONTROL) =>
+                    {
+                        break Ok(());
+                    }
+                    KeyCode::Enter => {
+                        if let Some(selected_index) = self.table.selected()
+                            && let Some(process_to_kill) = killable_processes.get(selected_index)
+                        {
+                            port_process::kill_port_process(process_to_kill);
+                        }
+
+                        break Ok(());
+                    }
                     _ => {}
                 }
             }
@@ -78,12 +90,9 @@ impl UI {
 
         let table = Table::new(rows, widths)
             .header(header)
-            // .footer(footer.italic())
             .column_spacing(1)
             .style(Color::White)
             .row_highlight_style(Style::new().add_modifier(Modifier::REVERSED))
-            // .column_highlight_style(Color::Gray)
-            // .cell_highlight_style(Style::new().reversed().yellow())
             .highlight_symbol("> ");
 
         frame.render_stateful_widget(table, main, &mut self.table);

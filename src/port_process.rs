@@ -59,6 +59,20 @@ pub fn get_port_processes() -> Vec<PortProcess> {
     PortProcess::from_network_processes(&network_processes)
 }
 
+pub fn kill_port_process(process: &PortProcess) {
+    println!("Going to kill process {}", process.pid);
+
+    let output = Command::new("kill")
+        .args(["-9", &process.pid.to_string()])
+        .output()
+        .expect("Error ocurred killing process");
+
+    if !output.status.success() {
+        let error = String::from_utf8_lossy(&output.stderr);
+        panic!("Error: {error}")
+    }
+}
+
 #[derive(Debug)]
 struct NetworkProcess {
     command: String,
