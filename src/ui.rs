@@ -65,26 +65,42 @@ impl UI {
         ]);
         frame.render_widget(title.centered(), top);
 
-        let header = Row::new(["Command", "User", "Ports"])
-            .style(Style::new().bold())
-            .bottom_margin(1);
+        let header = Row::new([
+            "Command",
+            "User",
+            "CPU %",
+            "Memory (MB)",
+            "Running for",
+            "Ports",
+            "Path",
+        ])
+        .style(Style::new().bold())
+        .bottom_margin(1);
 
         let rows = killable_processes.iter().map(|p| {
             Row::new([
                 p.command.clone(),
                 p.user.clone(),
+                p.cpu.to_string(),
+                p.memory.to_string(),
+                p.running_since.clone(),
                 p.ports
                     .iter()
                     .map(|s| s.to_string())
                     .collect::<Vec<String>>()
                     .join(" "),
+                p.path.clone(),
             ])
         });
 
         let widths = [
-            Constraint::Percentage(15),
-            Constraint::Percentage(15),
-            Constraint::Percentage(70),
+            Constraint::Percentage(7),
+            Constraint::Percentage(7),
+            Constraint::Percentage(7),
+            Constraint::Percentage(7),
+            Constraint::Percentage(7),
+            Constraint::Percentage(14),
+            Constraint::Percentage(50),
         ];
 
         let table = Table::new(rows, widths)
