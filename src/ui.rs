@@ -1,4 +1,5 @@
 use crossterm::event::{self, KeyCode, KeyModifiers};
+use humansize::{DECIMAL, format_size};
 use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
@@ -7,8 +8,12 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Row, Table, TableState},
 };
+use sysinfo::System;
 
-use std::io;
+use std::{
+    io,
+    time::{Duration, Instant},
+};
 
 use crate::port_process::{self, PortProcess};
 
@@ -25,14 +30,27 @@ impl UI {
         Self { table: table_state }
     }
 
-    pub fn draw(
+    pub fn draw<F>(
         &mut self,
         terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-        killable_processes: &[PortProcess],
-    ) -> io::Result<()> {
+        mut sys: System,
+        refetch: F,
+    ) -> io::Result<()>
+    where
+        F: Fn(&mut System) -> Vec<PortProcess>,
+    {
+        let tick_rate = Duration::from_secs(1);
+        let mut last_tick = Instant::now();
+        let mut killable_processes = refetch(&mut sys);
+
         loop {
-            terminal.draw(|frame| self.render_table(frame, killable_processes))?;
-            if let Some(key) = event::read()?.as_key_press_event() {
+            terminal.draw(|frame| self.render_table(frame, &killable_processes))?;
+
+            let timeout = tick_rate.saturating_sub(last_tick.elapsed());
+
+            if event::poll(timeout)?
+                && let Some(key) = event::read()?.as_key_press_event()
+            {
                 match key.code {
                     KeyCode::Char('j') | KeyCode::Down => self.table.select_next(),
                     KeyCode::Char('k') | KeyCode::Up => self.table.select_previous(),
@@ -51,6 +69,11 @@ impl UI {
                     }
                     _ => {}
                 }
+            }
+
+            if last_tick.elapsed() >= tick_rate {
+                killable_processes = refetch(&mut sys);
+                last_tick = Instant::now();
             }
         }
     }
@@ -78,29 +101,34 @@ impl UI {
         .bottom_margin(1);
 
         let rows = killable_processes.iter().map(|p| {
+            let cpu = p.cpu;
+            let mut ports = p
+                .ports
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>();
+
+            ports.sort();
+
             Row::new([
                 p.command.clone(),
                 p.user.clone(),
-                p.cpu.to_string(),
-                p.memory.to_string(),
+                format!("{cpu:.0}"),
+                format_size(p.memory, DECIMAL),
                 p.running_since.clone(),
-                p.ports
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect::<Vec<String>>()
-                    .join(" "),
+                ports.join(" "),
                 p.path.clone(),
             ])
         });
 
         let widths = [
-            Constraint::Percentage(7),
-            Constraint::Percentage(7),
-            Constraint::Percentage(7),
-            Constraint::Percentage(7),
+            Constraint::Percentage(15),
+            Constraint::Percentage(8),
+            Constraint::Percentage(4),
+            Constraint::Percentage(4),
             Constraint::Percentage(7),
             Constraint::Percentage(14),
-            Constraint::Percentage(50),
+            Constraint::Percentage(48),
         ];
 
         let table = Table::new(rows, widths)

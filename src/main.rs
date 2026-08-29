@@ -1,12 +1,16 @@
 use std::io;
+use sysinfo::System;
+
+use crate::port_process::PortProcess;
 
 mod port_process;
 mod ui;
 
 fn main() -> io::Result<()> {
-    let killable_processes = port_process::get_port_processes();
+    let f = |sys: &mut System| -> Vec<PortProcess> { port_process::get_port_processes(sys) };
+
+    let system = System::new();
 
     let mut ui = ui::UI::init();
-
-    ratatui::run(|terminal| ui.draw(terminal, &killable_processes))
+    ratatui::run(|terminal| ui.draw(terminal, system, f))
 }
